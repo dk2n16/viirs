@@ -1,0 +1,25 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+"bs4" = "*"
+certifi = "*"
+"urllib3" = {extras = ["secure"], version = "*"}
+ipykernel = "*"
+jupyter = "*"
+rasterstats = "*"
+fuzzywuzzy = "*"
+matplotlib = "*"
+descartes = "*"
+fiona = "*"
+scipy = "*"
+mapclassify = "*"
+adjusttext = "*"
+
+[dev-packages]
+pylint = "*"
+
+[requires]
+python_version = "3.6"
