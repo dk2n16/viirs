@@ -17,6 +17,7 @@ fiona = "*"
 scipy = "*"
 mapclassify = "*"
 adjusttext = "*"
+geopandas = "*"
 
 [dev-packages]
 pylint = "*"

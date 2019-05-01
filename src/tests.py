@@ -17,6 +17,7 @@ class ViirsProcessing(TestCase):
     def test_object_made(self):
         """Test whether object instantiated"""
         self.assertEqual('DavidHyekyung', 'DavidHyekyung')
+        
 
 if __name__ == "__main__":
     testmain()
