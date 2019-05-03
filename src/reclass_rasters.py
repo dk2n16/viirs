@@ -71,4 +71,60 @@ class SetThreshold:
         profile = self.profile
         with rasterio.open(str(self.out_rad), 'w', **profile) as dst:
             dst.write(reclass_data)
-        self.rad.unlink()
+        #self.rad.unlink()
+
+class NormaliseAdminUnits:
+    """Class to normalise rasters temporally --> lowest = 0; highest = 1"""
+    def __init__(self, names, months, country):
+        """Initialisation expects a list of admin unit names from which to normalise and a list of folders in which temporal data sets are kept to be normalised. Class will loop through each name, collect the rasters for that name in each month, normalise (0-1) and save a raster. Will then mosaic the raster.
+        names --> List of admin unit names
+        month --> list of folders representing temporal time periods
+        """
+        self.names = names
+        self.months = months
+        self.country = country
+        for name in self.names:
+            #for_normalising = self.extract_rasters_to_stacked_array(name)
+            for admin_unit in self.extract_rasters_to_stacked_array(name):
+                stack = self.stack_arrays(admin_unit)
+                for month in self.months:
+                    self.write_normalised_rasters(month, stack, name)
+
+    def extract_rasters_to_stacked_array(self, name):
+        """Loop through names and return 3D stacked array of admin units monthly rasters"""        
+        for_normalising = {}
+        for month in self.months:
+            raster = month.joinpath(f'subnational/{name}_{month.name}_rad.tif')
+            array_name = f'{str(name)}_{month.name}'
+            with rasterio.open(raster) as src:
+                data = src.read()
+                for_normalising[array_name] = data
+        yield for_normalising
+
+    def stack_arrays(self, admin_unit):
+        """Returns stacked array for admin units over a time period
+        admin_unit --> dictionary of admin_units np.arrays over a time period
+        """
+        result = (admin_unit[x] for x, _ in admin_unit.items())
+        stacked_arrays = np.stack(result)
+        stack2 = np.ma.masked_array(stacked_arrays, stacked_arrays == -99999)
+        stack2 = (stacked_arrays - stacked_arrays.min())/(stacked_arrays.max() - stacked_arrays.min())
+        stack2[np.where(stacked_arrays == -99999)] = -99999
+        return stack2
+
+    def write_normalised_rasters(self, month, stack, name):
+        """Save subsection of stacked array"""
+        data = stack[int(month.name) -1]
+        out_name = month.joinpath(f'subnational/{name}_{month.name}_norm.tif')
+        raster = month.joinpath(f'subnational/{name}_{month.name}_rad.tif')
+        template = rasterio.open(str(raster))
+        profile = template.profile
+        profile.update(count=1,
+				        compress='lzw',
+				        predictor=2,
+				        bigtiff='yes',
+				        nodata=-99999)
+        template.close()
+        with rasterio.open(out_name, 'w', **profile) as dst:
+            dst.write(data)
+        
