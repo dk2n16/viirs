@@ -1,6 +1,7 @@
 """Main module to call all classes and functions associated with downloading, preprocessing and analysing VIIRS NTL"""
 from pathlib import Path
 from extract_rasters import ExtractFromTiles
+from reclass_rasters import SetThreshold
 from split_admin_units import SplitAdminUnits
 
 def main():
@@ -20,7 +21,7 @@ def main():
                 if not tile_folder.exists():
                     tile_folder.mkdir(parents=True, exist_ok=True)
                 if tile.name.endswith('rade9h.tif'):
-                    outfile = tile_folder.joinpath(f'{country}_{month.name}_rad.tif')
+                    outfile = tile_folder.joinpath(f'{country}_{month.name}_rad_tmp.tif')
                 else:
                     outfile = tile_folder.joinpath(f'{country}_{month.name}_cvg.tif')
                 if not outfile.exists():
@@ -35,8 +36,20 @@ def main():
             ################################################################################
             #do something to clean of nodata or no coverages in national level before splitting.
             ###############################################################################
+    for country, extent in countries.items():
+        months = [x for x in BASEDIR.joinpath(f'datain/{country}').iterdir()]
+        for month in months:
+            rad = [x for x in month.iterdir() if x.name.endswith('rad_tmp.tif')][0]
+            cvg = [x for x in month.iterdir() if x.name.endswith('cvg.tif')][0]
+            out_rad = Path(str(rad)[:-11] + 'rad.tif')
+            print(f'OUTRAD NAME = {out_rad.name}')
+            SetThreshold(rad, cvg, out_rad, threshold=5) #Reclassifies based on threshold value and deletes tmp file
+
+            #WRITE SOMETHING TO REMOVE VALUES HIGHER THAN CAPITAL MAX
+
 
     #Extract admin-level rasters from national-level
+
     for country, extent in countries.items():
         months = [x for x in BASEDIR.joinpath(f'datain/{country}').iterdir()]
         admin_units = [x for x in BASEDIR.joinpath(f'datain/shps/{country}/adm_units').iterdir() if x.name.endswith('.shp')]
