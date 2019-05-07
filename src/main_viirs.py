@@ -43,6 +43,8 @@ def set_threshold(country):
         out_rad = Path(str(rad)[:-11] + 'rad_thrsh_set.tif')
         SetThreshold(rad, cvg, out_rad, threshold=5) #Reclassifies based on threshold value and deletes tmp file
 
+        ####MAKE RAD AND CVG THRESHOLDS IN THE FUNCTION!!!!! IN THE REMOVE NEGATIVE VALUES FUNCTION
+
 def remove_outliers_outside_capital(country):
     """Remove values higher than highest in capital. This iteration does not interpolate or change values --> only makes NoData"""
     capital_shp = BASEDIR.joinpath(f'datain/shps/capitals/{country}_capital.shp')
@@ -75,8 +77,7 @@ def normalise_admin_level_rasters_temporally(country):
     months = sorted([x for x in BASEDIR.joinpath(f'datain/{country}').iterdir()])
     names = sorted([x.name.split('_')[0] for x in months[0].joinpath('subnational').iterdir() if x.name.endswith('rad.tif')])
     NormaliseAdminUnits(names, months, country)
-    #######START IN NORMALISEADMINUNITS > LOOP THROUGH THE MONTHS AND SAVE THE RASTERS> THEN MOSAIC
-    
+
 
 
 
@@ -109,6 +110,7 @@ def main():
     for country, _ in countries.items():
         normalise_admin_level_rasters_temporally(country)
 
+    #### CHECK IF NORMALISING WAS THE BEST CHOICE ###
     #merge normalised rasters (try setting extent to fix shift)
 
     #zonal stats
