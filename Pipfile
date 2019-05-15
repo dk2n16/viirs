@@ -18,6 +18,7 @@ scipy = "*"
 mapclassify = "*"
 adjusttext = "*"
 geopandas = "*"
+sklearn = "*"
 
 [dev-packages]
 pylint = "*"

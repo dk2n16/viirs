@@ -7,7 +7,8 @@ import matplotlib.pyplot as plt
 import adjustText as aT
 
 class GraphMaps(object):
-	def __init__(self, country, shp, csv, outpath):
+	def __init__(self, country, shp, csv, outpath, extra_graphs=False):
+		"""Optional Arg (extra graphs) --> will plot sum etc"""
 		self.country = country
 		self.shp = shp
 		self.csv = csv
@@ -15,12 +16,15 @@ class GraphMaps(object):
 		self.months = {1: 'January', 2: 'February', 3: 'March', 4: 'April', 5: 'May', 6: 'June', 7: 'July', 8: 'August', 9: 'September', 10: 'October', 11: 'November', 12: 'December'}
 		if not self.outpath.exists():
 			self.outpath.mkdir(parents=True, exist_ok=True)
-		self.make_sum_bars()
-		self.make_areal_bars()
-		self.make_sum_lines()
-		self.make_areal_lines()
-		self.make_sum_maps()
-		self.make_diff_maps()
+		if extra_graphs:
+			self.make_sum_bars()
+			self.make_areal_bars()
+			self.make_sum_lines()
+			self.make_areal_lines()
+			self.make_sum_maps()
+			self.make_diff_maps()
+		self.make_SoL_obs_bars()
+		self.make_SoL_obs_lines()
 
 	def make_sum_bars(self):
 		df = pd.read_csv(str(self.csv))
@@ -100,6 +104,48 @@ class GraphMaps(object):
 			g_plot.set_title(self.months[index + 1])
 			plt.savefig(self.outpath.joinpath(f'{self.country}_{str(index + 1 )}_diff.png'))
 			plt.close()
+
+	def make_SoL_obs_bars(self):
+		"""Make bar graph of months' Sum of Lights observations"""
+		df = pd.read_csv(self.csv)
+		cols = ['ADM1']
+		for i in range(12):
+			i += 1
+			if len(str(i)) < 2:
+				col = f'SoL_obs0{str(i)}'
+			else:
+				col = f'SoL_obs{str(i)}'
+			cols.append(col)
+		df = df[cols]
+		df = df.set_index('ADM1')
+		df = df.transpose()
+		areal_rad = df.plot.bar(figsize=(12,12),stacked=True, title=f'{self.country} Observed Sum of Lights by month - 2016')
+		areal_rad.set_xlabel('Month')
+		areal_rad.set_ylabel('SoL(obs)')
+		plt.savefig(self.outpath.joinpath(f'{self.country}_SoL_bars.png'))
+		plt.close()
+
+	def make_SoL_obs_lines(self):
+		"""Make line graph of months' Sum of Lights observations"""
+		df = pd.read_csv(self.csv)
+		cols = ['ADM1']
+		for i in range(12):
+			i += 1
+			if len(str(i)) < 2:
+				col = f'SoL_obs0{str(i)}'
+			else:
+				col = f'SoL_obs{str(i)}'
+			cols.append(col)
+		df = df[cols]
+		df = df.set_index('ADM1')
+		df = df.transpose()
+		line = df.plot.line(figsize=(12,12),title=f'{self.country} total radiance by month - 2016')
+		line.set_xlabel('Month')
+		line.set_ylabel('Radiance')
+		plt.savefig(self.outpath.joinpath(f'{self.country}_sum_lines.png'))
+		plt.close()
+
+
 
 
 		

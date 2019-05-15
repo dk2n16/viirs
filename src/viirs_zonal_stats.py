@@ -4,12 +4,13 @@ import geopandas as gpd
 import numpy as np 
 import pandas as pd 
 from rasterstats import zonal_stats
+from sklearn import preprocessing
 
 class VIIRSZonalStats:
     """Class to calculate zonal stats"""
     UTMS = {'GHA': 2136, 'NPL': 32645, 'HTI':32618, 'MOZ': 4129, 'NAM': 32733}
 
-    def __init__(self, country, months, shp, out_shp, out_csv, raster_type=None):
+    def __init__(self, country, months, shp, out_shp, out_csv, level, raster_type=None):
         """Initialisation arguments:
         
         country --> ISO for input country
@@ -23,6 +24,7 @@ class VIIRSZonalStats:
         self.shp = shp
         self.out_shp = out_shp
         self.out_csv = out_csv
+        self.level = level
         self.raster_type = raster_type ##(normalised or seasonality coefficient) ##
         self.utm = self.UTMS[self.country]
         self.gdf = self.zonal_stats_all_months()
@@ -35,15 +37,15 @@ class VIIRSZonalStats:
             raster = month.joinpath(f'{self.country}_{month.name}{self.raster_type}')
             stats = zonal_stats(str(self.shp), raster, stats=['sum'], geojson_out=True)
             stats_geojson = gpd.GeoDataFrame.from_features(stats)
-            stats_geojson = stats_geojson[['ADM1_id', 'sum']]
-            stats_geojson =stats_geojson.rename(index=str, columns={'ADM1_id':'ADM1_id', 'sum': f'sum{month.name}'})
-            gdf = gdf.merge(stats_geojson, on='ADM1_id')
+            stats_geojson = stats_geojson[[f'NAME{self.level}', 'sum']]
+            stats_geojson =stats_geojson.rename(index=str, columns={f'NAME{self.level}':f'NAME{self.level}', 'sum': f'sum{month.name}'})
+            gdf = gdf.merge(stats_geojson, on=f'NAME{self.level}')
         temp = gdf.copy()
         temp = temp.to_crs(epsg=self.utm)
         temp['area'] = temp['geometry'].area * 0.0000001
-        temp = temp[['area', 'ADM1_id']]
-        gdf = gdf.merge(temp, on='ADM1_id')
-        gdf = gdf[['ADM1', 'ADM1_id', 'sum01', 'sum02', 'sum03', 'sum04', 'sum05', 'sum06', 'sum07', 'sum08', 'sum09', 'sum10', 'sum11', 'sum12', 'area', 'geometry']]
+        temp = temp[['area', f'NAME{self.level}']]
+        gdf = gdf.merge(temp, on=f'NAME{self.level}')
+        gdf = gdf[['ADM1', f'NAME{self.level}', 'sum01', 'sum02', 'sum03', 'sum04', 'sum05', 'sum06', 'sum07', 'sum08', 'sum09', 'sum10', 'sum11', 'sum12', 'area', 'geometry']]
         cols = [x for x in gdf.columns.values if x.startswith('sum')]
         gdf['annual_ave'] = gdf[cols].sum(axis=1)/12
         gdf['annual_per_km'] = gdf['annual_ave']/gdf['area']
@@ -58,7 +60,32 @@ class VIIRSZonalStats:
         df = df.drop('geometry', axis=1)
         df.to_csv(str(self.out_csv))
 
+class PPPZonalStats:
+    """Class for calculating zonal stats sums of input ppp raster and subnational shapefile"""
+    def __init__(self, country, level, raster, shp, out_csv, append_to_shp=False):
+        """
+        raster --> Input ppp raster
+        shp --> shapefile defining the zones
+        out_csv --> out zonal stats table
+        append_to_shp --> append zonal stats to shapefile as well
+        """
+        self.country = country
+        self.level = level
+        self.raster = raster
+        self.shp = shp
+        self.out_csv = out_csv
+        self.append_to_shp = append_to_shp
+        self.ppp_zonal_stats()
 
-
-
+    def ppp_zonal_stats(self):
+        """Function to calculate zonal stats"""
+        gdf = gpd.read_file(str(self.shp))
+        stats = zonal_stats(str(self.shp), self.raster, stats=['sum'], geojson_out=True)
+        stats_geojson = gpd.GeoDataFrame.from_features(stats)
+        stats_geojson = stats_geojson[[f'NAME{self.level}', 'sum']]
+        #stats_geojson =stats_geojson.rename(index=str, columns={'ADM{self.level}_id':'ADM{self.level}_id', 'sum': f'sum{month.name}'})
+        #stats_geojson.insert()
+        if self.append_to_shp:
+            gdf = gdf.merge(stats_geojson, on='ADM{self.level}_id')
+        stats_geojson.to_csv(str(self.out_csv))
 
