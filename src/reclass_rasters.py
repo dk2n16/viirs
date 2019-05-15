@@ -134,4 +134,31 @@ class NormaliseAdminUnits:
         template.close()
         with rasterio.open(out_name, 'w', **profile) as dst:
             dst.write(data)
-        
+
+class ReclassByThreshold:
+    """Class to extract rad raster above certain input value"""
+    def __init__(self, rad_raster, threshold_value, outname):
+        """
+        rad_raster -> radiance input raster
+        threshold_value -> values above which will be extracted from raster
+        outname -> output file name
+        """
+        self.rad_raster = rad_raster
+        self.threshold_value = threshold_value
+        self.outname = outname
+        self.reclass_raster()
+
+    def reclass_raster(self):
+        """Function to reclassify raster"""
+        template = rasterio.open(str(self.rad_raster))
+        profile = template.profile
+        profile.update(count=1,
+				        compress='lzw',
+				        predictor=2,
+				        bigtiff='yes',
+				        nodata=-99999)
+        template.close()
+        with rasterio.open(self.rad_raster) as src, rasterio.open(self.outname, 'w', **profile) as dst:
+            data = src.read()
+            data[np.where(data < self.threshold_value)] = -99999
+            dst.write(data)

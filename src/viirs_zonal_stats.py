@@ -80,12 +80,39 @@ class PPPZonalStats:
     def ppp_zonal_stats(self):
         """Function to calculate zonal stats"""
         gdf = gpd.read_file(str(self.shp))
-        stats = zonal_stats(str(self.shp), self.raster, stats=['sum'], geojson_out=True)
+        stats = zonal_stats(str(self.shp), self.raster, stats=['sum', 'mean', 'std'], geojson_out=True)
         stats_geojson = gpd.GeoDataFrame.from_features(stats)
-        stats_geojson = stats_geojson[[f'NAME{self.level}', 'sum']]
-        #stats_geojson =stats_geojson.rename(index=str, columns={'ADM{self.level}_id':'ADM{self.level}_id', 'sum': f'sum{month.name}'})
-        #stats_geojson.insert()
+        stats_geojson = stats_geojson[['GID', f'NAME{self.level}', 'sum', 'mean', 'std']]
         if self.append_to_shp:
             gdf = gdf.merge(stats_geojson, on='ADM{self.level}_id')
-        stats_geojson.to_csv(str(self.out_csv))
+        #stats_geojson = stats_geojson.groupby(f'NAME{self.level}').sum()
+        stats_geojson.to_csv(str(self.out_csv), index=False)
+
+
+class ThresholdZonalStats:
+    """Calculates zonal stats of rad raster and appends to ppp zonal stats table"""
+    def __init__(self, raster, shp, level, threshold_value, csv_to_append):
+        """
+        raster -> radiance raster
+        shp --> shapefiles defining zones
+        csv_to_append --> ppp zonal table to append to
+        """
+        self.raster = raster
+        self.shp = shp
+        self.level = level
+        self.threshold_value = threshold_value
+        self.csv_to_append = csv_to_append
+        self.threshold_zonal_stats()
+
+    def threshold_zonal_stats(self):
+        """Function to calculate zonal stats and append to table"""
+        df = pd.read_csv(self.csv_to_append)
+        stats = zonal_stats(str(self.shp), self.raster, stats=['sum', 'mean', 'std'], geojson_out=True)
+        stats_geojson = gpd.GeoDataFrame.from_features(stats)
+        stats_geojson = stats_geojson[['GID', 'sum', 'mean', 'std']]
+        stats_geojson.columns = ['GID', f'sum{self.threshold_value}', f'mean{self.threshold_value}', f'std{self.threshold_value}']
+        #stats_geojson = stats_geojson.groupby(f'NAME{self.level}').sum()
+        #df = df.merge(stats_geojson, on=f'NAME{self.level}')
+        df = df.merge(stats_geojson, on='GID')
+        df.to_csv(self.csv_to_append, index=False)
 
