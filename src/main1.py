@@ -2,6 +2,7 @@
 from pathlib import Path
 import shutil
 import numpy as np
+import matplotlib.pyplot as plt
 import pandas as pd
 from extract_rasters import ExtractFromTiles
 from reclass_rasters import SetThreshold, NormaliseAdminUnits, ReclassByThreshold
@@ -39,7 +40,7 @@ class GetOptimalThresholdValue:
         for i in np.arange(self.rad_min, self.rad_max + self.rad_interval, self.rad_interval):
             self.reclass_to_threshold(i)
             self.radiance_zonal_stats(i)
-            print(i)
+        self.get_max_threshold()
 
 
     def reclass_to_threshold(self, i):
@@ -49,6 +50,28 @@ class GetOptimalThresholdValue:
     def radiance_zonal_stats(self, i):
         """Function to get zonal stats of radiance when classified to threshold value"""
         ThresholdZonalStats(self.temp_rad_raster, self.shp, self.level, i, self.thresholds_csv)
+
+    def get_max_threshold(self):
+        """Get maximum correlation between radiance threshold and ppp"""
+        df = pd.read_csv(self.thresholds_csv)
+        sums = [x for x in df.columns.values if x.startswith('sum')]
+        sums.remove('sum')
+        df_final = dict()
+        for column in sums:
+            df_corr = df[['sum', column]]
+            df_corr = df_corr.corr(method='pearson')
+            df_final[column] = [df_corr[column][0]]
+        df_sums = pd.DataFrame.from_dict(df_final)
+        max_corr = df_sums.max(axis=1)
+        max_threshold = df.idxmax(axis=1)
+        print(f'maximum threshold is {max_threshold} with correlation of {max_corr}')
+        df_sums = df_sums.transpose()
+        df_sums.columns = ['Threshold']
+        line = df_sums.plot.line(figsize=(12,12),title=f'{self.country} lights correlation with ppp')
+        line.set_ylabel('Radiance')
+        plt.savefig(self.temp_rad_raster.parent.joinpath(f'{self.country}_lights_corr_with_ppp.png'))
+        plt.close()
+
         
 
 
@@ -73,6 +96,6 @@ if __name__ == "__main__":
         out_raster_rad = BASEDIR.joinpath(f'datain/{country}/threshold_selection/{country}_ann_rad.tif')
         if not out_raster_rad.exists():
             ExtractFromTiles(rad_tile, shp, out_raster_rad)
-        threshold = GetOptimalThresholdValue(country, info['admin_level'], out_raster_rad, shp, ppp, 0, 2, rad_interval=0.05)
+        threshold = GetOptimalThresholdValue(country, info['admin_level'], out_raster_rad, shp, ppp, 0, 5, rad_interval=0.05)
         
         
